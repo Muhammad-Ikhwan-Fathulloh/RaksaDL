@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "raksa-dl"
+version = "0.1.0"
+description = "RaksaDL: deep learning (TensorFlow Lite) untuk MicroPython dan CPython dengan verifikasi parity dan alat konversi."
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [{name = "Muhammad Ikhwan Fathulloh"}]
+
+[project.optional-dependencies]
+runtime = ["ai-edge-litert"]
+convert = ["tensorflow", "numpy"]
+dev = ["pytest", "tensorflow", "numpy"]
+
+[tool.setuptools]
+packages = ["raksadl"]

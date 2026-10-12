@@ -31,30 +31,48 @@ def sha256_hex(data):
     return _binascii.hexlify(h.digest()).decode()
 
 
+def sha256_file(path):
+    h = _hashlib.sha256()
+    with open(path, "rb") as f:
+        while True:
+            c = f.read(512)
+            if not c:
+                break
+            h.update(c)
+    return _binascii.hexlify(h.digest()).decode()
+
+
 class Model:
     """
     Satu input dan satu output tensor (v0.1). Input mentah (satuan sensor) -> normalisasi per channel
     (dari metadata) -> kuantisasi -> inferensi -> dekuantisasi.
     """
 
-    def __init__(self, blob, meta, arena_size=16 * 1024, verify=True):
+    def __init__(self, blob, meta, arena_size=16 * 1024, verify=True, backend="auto", graph=None):
         if isinstance(blob, str):
             with open(blob, "rb") as f:
                 blob = f.read()
-        if verify and meta.get("sha256") and sha256_hex(blob) != meta["sha256"]:
+        if blob is not None and verify and meta.get("sha256") and sha256_hex(blob) != meta["sha256"]:
             raise ValueError("Model rusak atau diubah: sha256 tidak cocok dengan metadata")
         self.meta = meta
         self.labels = meta.get("labels")
         self._in, self._out = meta["input"], meta["output"]
         self.n_in, self.n_out = _prod(self._in["shape"]), _prod(self._out["shape"])
         self._norm = meta.get("norm")
-        self._be = make_backend(blob, arena_size, self.n_in, self.n_out)
+        self._be = make_backend(blob, arena_size, self.n_in, self.n_out, graph, backend)
 
     @classmethod
-    def load(cls, tflite_path, meta_path, **kw):
+    def load(cls, tflite_path, meta_path, graph_path=None, **kw):
+        """tflite_path boleh None bila backend="purepy" (mis. Wokwi) dan graph_path diberikan."""
         with open(meta_path) as f:
             meta = json.load(f)
-        return cls(tflite_path, meta, **kw)
+        graph = None
+        if graph_path:
+            if kw.get("verify", True) and meta.get("graph_sha256") and sha256_file(graph_path) != meta["graph_sha256"]:
+                raise ValueError("Graf rusak atau diubah: sha256 tidak cocok dengan metadata")
+            with open(graph_path) as f:
+                graph = json.load(f)
+        return cls(tflite_path, meta, graph=graph, **kw)
 
     # --- pra-proses ---
     def normalize(self, x):

@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "author": "RaksaDL",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 0, "left": 0, "attrs": { "env": "micropython-20231227-v1.22.0" } },
+    { "type": "wokwi-mpu6050", "id": "imu", "top": -120, "left": 160, "attrs": {} },
+    { "type": "wokwi-led", "id": "ledOk", "top": 150, "left": 260, "attrs": { "color": "green" } },
+    { "type": "wokwi-led", "id": "ledBad", "top": 150, "left": 320, "attrs": { "color": "red" } },
+    { "type": "wokwi-resistor", "id": "r1", "top": 200, "left": 250, "rotate": 90, "attrs": { "value": "220" } },
+    { "type": "wokwi-resistor", "id": "r2", "top": 200, "left": 310, "rotate": 90, "attrs": { "value": "220" } },
+    { "type": "wokwi-pushbutton", "id": "btn", "top": 60, "left": 280, "attrs": { "color": "yellow" } }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "esp:3V3", "imu:VCC", "red", [] ],
+    [ "esp:GND.1", "imu:GND", "black", [] ],
+    [ "esp:21", "imu:SDA", "green", [] ],
+    [ "esp:22", "imu:SCL", "blue", [] ],
+    [ "esp:2", "r1:1", "green", [] ],
+    [ "r1:2", "ledOk:A", "green", [] ],
+    [ "ledOk:C", "esp:GND.2", "black", [] ],
+    [ "esp:4", "r2:1", "red", [] ],
+    [ "r2:2", "ledBad:A", "red", [] ],
+    [ "ledBad:C", "esp:GND.2", "black", [] ],
+    [ "esp:15", "btn:1.l", "yellow", [] ],
+    [ "btn:2.l", "esp:GND.2", "black", [] ]
+  ],
+  "dependencies": {}
+}

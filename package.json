@@ -1,9 +1,25 @@
 {
   "urls": [
-    ["raksadl/__init__.py", "github:Muhammad-Ikhwan-Fathulloh/RaksaDL/raksadl/__init__.py"],
-    ["raksadl/backends.py", "github:Muhammad-Ikhwan-Fathulloh/RaksaDL/raksadl/backends.py"],
-    ["raksadl/model.py", "github:Muhammad-Ikhwan-Fathulloh/RaksaDL/raksadl/model.py"],
-    ["raksadl/pipeline.py", "github:Muhammad-Ikhwan-Fathulloh/RaksaDL/raksadl/pipeline.py"]
+    [
+      "raksadl/__init__.py",
+      "github:Muhammad-Ikhwan-Fathulloh/RaksaDL/raksadl/__init__.py"
+    ],
+    [
+      "raksadl/backends.py",
+      "github:Muhammad-Ikhwan-Fathulloh/RaksaDL/raksadl/backends.py"
+    ],
+    [
+      "raksadl/model.py",
+      "github:Muhammad-Ikhwan-Fathulloh/RaksaDL/raksadl/model.py"
+    ],
+    [
+      "raksadl/pipeline.py",
+      "github:Muhammad-Ikhwan-Fathulloh/RaksaDL/raksadl/pipeline.py"
+    ],
+    [
+      "raksadl/purepy.py",
+      "github:Muhammad-Ikhwan-Fathulloh/RaksaDL/raksadl/purepy.py"
+    ]
   ],
   "version": "0.1.0"
 }

@@ -1,5 +1,6 @@
 # raksadl/backends.py — satu antarmuka, dua mesin: microlite (perangkat) dan LiteRT/TensorFlow (laptop).
 import gc
+from .purepy import PurePyBackend
 
 try:
     import microlite
@@ -66,7 +67,20 @@ class LiteRTBackend:
         return self._it.get_tensor(self._o["index"]).reshape(-1).tolist()
 
 
-def make_backend(blob, arena_size, n_in, n_out):
-    if ON_DEVICE:
+def make_backend(blob, arena_size, n_in, n_out, graph=None, backend="auto"):
+    """backend: auto | microlite | litert | purepy. auto = microlite di perangkat, LiteRT di laptop,
+    dan purepy bila tidak ada runtime lain tetapi graf tersedia (mis. simulator Wokwi)."""
+    if backend == "purepy":
+        if graph is None:
+            raise ValueError("backend purepy butuh graf (graph_path)")
+        return PurePyBackend(graph)
+    if backend == "microlite" or (backend == "auto" and ON_DEVICE):
         return MicroBackend(blob, arena_size, n_in, n_out)
-    return LiteRTBackend(blob)
+    if backend == "litert":
+        return LiteRTBackend(blob)
+    try:
+        return LiteRTBackend(blob)
+    except Exception:
+        if graph is not None:
+            return PurePyBackend(graph)
+        raise

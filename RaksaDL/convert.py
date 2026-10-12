@@ -8,6 +8,50 @@ class ParityError(RuntimeError):
     pass
 
 
+class UnsupportedOp(ValueError):
+    pass
+
+
+def export_graph(blob):
+    """TFLite flatbuffer -> graf portabel (dict) untuk raksadl.purepy. Hanya model int8 dengan op yang didukung."""
+    from tensorflow.lite.python import schema_py_generated as S
+    from .purepy import SUPPORTED
+    mt = S.ModelT.InitFromPackedBuf(blob, 0)
+    sg = mt.subgraphs[0]
+    names = {v: k for k, v in vars(S.BuiltinOperator).items() if not k.startswith("_")}
+    kinds, npk = {0: "float32", 2: "int32", 9: "int8"}, {0: np.float32, 2: np.int32, 9: np.int8}
+    tensors = []
+    for t in sg.tensors:
+        if t.type not in kinds:
+            raise UnsupportedOp("tipe tensor %s tidak didukung" % t.type)
+        q = t.quantization
+        has = q is not None and q.scale is not None and len(q.scale) > 0
+        raw = mt.buffers[t.buffer].data
+        tensors.append({
+            "s": [int(d) for d in t.shape], "t": kinds[t.type],
+            "sc": [float(v) for v in q.scale] if has else [],
+            "zp": [int(v) for v in q.zeroPoint] if has else [],
+            "d": np.frombuffer(raw.tobytes(), dtype=npk[t.type]).tolist() if raw is not None and len(raw) else None})
+    ops = []
+    for op in sg.operators:
+        oc = mt.operatorCodes[op.opcodeIndex]
+        name = names[max(oc.builtinCode, oc.deprecatedBuiltinCode)]
+        if name not in SUPPORTED:
+            raise UnsupportedOp("op %s belum didukung backend purepy" % name)
+        b, opt = op.builtinOptions, {}
+        if name == "CONV_2D":
+            if getattr(b, "dilationHFactor", 1) != 1 or getattr(b, "dilationWFactor", 1) != 1:
+                raise UnsupportedOp("dilasi belum didukung")
+            opt = {"pad": int(b.padding), "sh": int(b.strideH), "sw": int(b.strideW),
+                   "act": int(b.fusedActivationFunction)}
+        elif name == "FULLY_CONNECTED":
+            opt = {"act": int(b.fusedActivationFunction)}
+        elif name == "SOFTMAX":
+            opt = {"beta": float(b.beta)}
+        ops.append({"op": name, "in": [int(i) for i in op.inputs], "out": [int(i) for i in op.outputs], "opt": opt})
+    return {"input": int(sg.inputs[0]), "output": int(sg.outputs[0]), "tensors": tensors, "ops": ops}
+
+
 def _interp(blob):
     try:
         from ai_edge_litert.interpreter import Interpreter
@@ -69,6 +113,18 @@ def convert(model, x_repr, out_dir, name, x_val=None, labels=None, norm=None, qu
     if check and (agree < min_agreement or report["max_abs_diff"] > max_diff):
         raise ParityError("Parity gagal, model tidak ditulis: %s" % json.dumps(report))
 
+    graph = None
+    if is_q:
+        try:
+            graph = export_graph(blob)
+            from .purepy import PurePyBackend
+            pp = PurePyBackend(graph)
+            report["purepy_max_raw_diff"] = max(
+                int(max(abs(a - b) for a, b in zip(pp.run([int(v) for v in o[0]]), [int(v) for v in o[1]])))
+                for o in outs[:100])
+        except UnsupportedOp as e:
+            report["purepy"] = "tidak didukung: %s" % e
+
     k = min(n_vectors, len(x_val))
     meta = {
         "format": 1, "name": name, "labels": labels, "norm": norm, "ops": _ops(it),
@@ -84,6 +140,12 @@ def convert(model, x_repr, out_dir, name, x_val=None, labels=None, norm=None, qu
     out = pathlib.Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     (out / (name + ".tflite")).write_bytes(blob)
+    meta["graph"], meta["graph_sha256"] = None, None
+    if graph is not None:
+        gtxt = json.dumps(graph, separators=(",", ":"))
+        (out / (name + ".graph.json")).write_text(gtxt)
+        meta["graph"] = name + ".graph.json"
+        meta["graph_sha256"] = hashlib.sha256(gtxt.encode()).hexdigest()
     (out / (name + ".json")).write_text(json.dumps(meta))
     return meta
 
